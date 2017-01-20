@@ -14,6 +14,16 @@
 `define False_v             1'b0
 `define ChipEnable          1'b1
 `define ChipDisable         1'b0
+`define Stop                1'b1
+`define NoStop              1'b0
+`define DivFree             2'b00
+`define DivByZero           2'b01
+`define DivOn               2'b10
+`define DivEnd              2'b11
+`define DivResultReady      1'b1
+`define DivResultNotReady   1'b0
+`define DivStart            1'b1
+`define DivStop             1'b0
 
 //************************** R **************************
 // R_op
@@ -47,6 +57,8 @@
 `define EXE_SLTU            6'b101011
 `define EXE_MULT            6'b011000
 `define EXE_MULTU           6'b011001
+`define EXE_DIV             6'b011010
+`define EXE_DIVU            6'b011011
 // other
 `define EXE_NOP             6'b000000
 `define EXE_SSNOP           6'b000000
@@ -57,6 +69,10 @@
 `define EXE_CLZ             6'b100000
 `define EXE_CLO             6'b100001
 `define EXE_MUL             6'b000010
+`define EXE_MADD            6'b000000
+`define EXE_MADDU           6'b000001
+`define EXE_MSUB            6'b000100
+`define EXE_MSUBU           6'b000101
 //************************* end **************************
 
 //************************* I_op *************************
@@ -119,7 +135,13 @@
 `define EXE_CLO_OP          8'b10110001
 `define EXE_MULT_OP         8'b00011000
 `define EXE_MULTU_OP        8'b00011001
-`define EXE_MUL_OP          8'b10101001       
+`define EXE_MUL_OP          8'b10101001
+`define EXE_MADD_OP         8'b10100110
+`define EXE_MADDU_OP        8'b10101000
+`define EXE_MSUB_OP         8'b10101010
+`define EXE_MSUBU_OP        8'b10101011 
+`define EXE_DIV_OP          8'b00011010
+`define EXE_DIVU_OP         8'b00011011   
 // other
 `define EXE_NOP_OP          8'b0000_0000
 //************************* end **************************
