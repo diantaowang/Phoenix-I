@@ -18,13 +18,27 @@ module ex(
           wb_whilo_i,
           wb_hi_i,
           wb_lo_i,
+          //input 
+          cnt_i,
+          hilo_temp_i,
+          //input div
+          div_ready_i,
+          div_result_i,
           //output
           wdata_o,
           wreg_o,
           wd_o,
           whilo_o,
           hi_o,
-          lo_o
+          lo_o,
+          cnt_o,
+          hilo_temp_o,
+          stallreq,
+          //output div
+          div_start_o,
+          signed_div_o,
+          div_opdata1_o,
+          div_opdata2_o     
          );
          
 input rst;
@@ -43,6 +57,12 @@ input [`RegBus] mem_lo_i;
 input wb_whilo_i;
 input [`RegBus] wb_hi_i;
 input [`RegBus] wb_lo_i;
+//
+input [1:0] cnt_i;
+input [`DoubleBus] hilo_temp_i;
+//input div
+input div_ready_i;
+input [`DoubleBus] div_result_i;
 
 output reg [`RegBus] wdata_o;
 output reg wreg_o;
@@ -50,6 +70,14 @@ output reg [`RegAddrBus] wd_o;
 output reg whilo_o;
 output reg [`RegBus] hi_o;
 output reg [`RegBus] lo_o;
+output reg [1:0] cnt_o;
+output reg [`DoubleBus] hilo_temp_o;
+output reg stallreq;
+//output div
+output reg div_start_o;
+output reg signed_div_o;
+output reg [`RegBus] div_opdata1_o;
+output reg [`RegBus] div_opdata2_o;
 
 reg [`RegBus] logicout;
 reg [`RegBus] shiftres;
@@ -59,15 +87,19 @@ reg [`RegBus] LO;
 
 reg [`RegBus] arithmeticres;
 reg [`DoubleBus] mulres;
+reg  [`DoubleBus] hilo_temp1;   //temp value
+reg stallreq_for_madd_msub;     //stall request 
+reg stallreq_for_div; 
 wire ov_sum;
 //wire reg1_eq_reg2;
 wire reg1_lt_reg2;
-wire [`RegBus] reg2_i_mux;    //reg2_i complement
-wire [`RegBus] reg1_i_not;    //reg1_i negate
+wire [`RegBus] reg2_i_mux;      //reg2_i complement
+wire [`RegBus] reg1_i_not;      //reg1_i negate
 wire [`RegBus] result_sum;
 wire [`RegBus] opdata1_mult;
 wire [`RegBus] opdata2_mult;
 wire [`DoubleBus] hilo_temp;
+
 
 assign reg2_i_mux = ((aluop_i == `EXE_SUB_OP) || (aluop_i == `EXE_SUBU_OP) ||
                     (aluop_i == `EXE_SLT_OP)) ? (~reg2_i)+1 : (reg2_i);
@@ -123,10 +155,12 @@ always@(*) begin
   end
 end
 
-assign opdata1_mult = ((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULT_OP)) && 
+assign opdata1_mult = ((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULT_OP) ||
+                      (aluop_i == `EXE_MADD_OP) || (aluop_i == `EXE_MSUB_OP)) && 
                       reg1_i[31] ? (~reg1_i)+1 : reg1_i;
                       
-assign opdata2_mult = ((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULT_OP)) &&
+assign opdata2_mult = ((aluop_i == `EXE_MUL_OP) || (aluop_i == `EXE_MULT_OP) ||
+                      (aluop_i == `EXE_MADD_OP) || (aluop_i == `EXE_MSUB_OP)) &&
                       reg2_i[31] ? (~reg2_i)+1 : reg2_i;
                       
 assign hilo_temp = opdata1_mult * opdata2_mult;
@@ -138,10 +172,10 @@ always@(*) begin
   end
   else begin
     case(aluop_i)
-      `EXE_MULTU_OP: begin
+      `EXE_MULTU_OP,`EXE_MADDU_OP,`EXE_MSUBU_OP: begin
         mulres <= hilo_temp;
       end
-      `EXE_MULT_OP,`EXE_MUL_OP: begin
+      `EXE_MULT_OP,`EXE_MUL_OP,`EXE_MADD_OP,`EXE_MSUB_OP: begin
         mulres <= (reg1_i[31] ^ reg2_i[31]) ? (~hilo_temp)+1 : hilo_temp;
       end
       default: begin
@@ -149,7 +183,112 @@ always@(*) begin
       end
     endcase
   end
-end                                   
+end 
+
+// MADD MADDU MSUB MSUBU
+always@(*) begin
+  if(rst == `RstEnable) begin
+    cnt_o <= 2'b00;
+    hilo_temp_o <= {`ZeroWord,`ZeroWord};
+    stallreq_for_madd_msub <= `NoStop;
+  end
+  else begin
+    case(aluop_i)
+      `EXE_MADD_OP,`EXE_MADDU_OP: begin
+        if(cnt_i == 2'b00) begin
+          stallreq_for_madd_msub <= `Stop;
+          hilo_temp_o <= mulres;
+          hilo_temp1 <= {`ZeroWord,`ZeroWord};
+          cnt_o <= 2'b01;
+        end
+        else if(cnt_i == 2'b01) begin
+          stallreq_for_madd_msub <= `NoStop;
+          hilo_temp_o <= {`ZeroWord,`ZeroWord};
+          hilo_temp1 <= hilo_temp_i + {HI,LO};
+          cnt_o <= 2'b10;     //importent
+        end
+        else ;
+      end
+      `EXE_MSUB_OP,`EXE_MSUBU_OP: begin
+        if(cnt_i == 2'b00) begin
+          stallreq_for_madd_msub <= `Stop;
+          hilo_temp_o <= ~mulres +1 ;
+          hilo_temp1 <= {`ZeroWord,`ZeroWord};
+          cnt_o <= 2'b01;
+        end
+        else if(cnt_i == 2'b01) begin
+          stallreq_for_madd_msub <= `NoStop;
+          hilo_temp_o <= {`ZeroWord,`ZeroWord};
+          hilo_temp1 <= hilo_temp_i + {HI,LO};
+          cnt_o <= 2'b10;     //importent
+        end
+        else ;
+      end
+      default: begin
+        cnt_o <= 2'b00;
+        hilo_temp_o <= {`ZeroWord,`ZeroWord};
+        stallreq_for_madd_msub <= `NoStop;  
+      end
+    endcase
+  end
+end 
+
+always@(*) begin
+  if(rst == `RstEnable) begin
+    div_start_o <= `DivStop;
+    signed_div_o <= 1'b0;
+    div_opdata1_o <= `ZeroWord;
+    div_opdata2_o <= `ZeroWord;
+    stallreq_for_div <= `NoStop;
+  end
+  else begin
+    div_start_o <= `DivStop;
+    signed_div_o <= 1'b0;
+    div_opdata1_o <= `ZeroWord;
+    div_opdata2_o <= `ZeroWord;
+    stallreq_for_div <= `NoStop;
+    case(aluop_i)
+      `EXE_DIV_OP: begin
+        if(div_ready_i == `DivResultNotReady) begin
+          div_start_o <= `DivStart;
+          signed_div_o <= 1'b1;
+          div_opdata1_o <= reg1_i;
+          div_opdata2_o <= reg2_i;
+          stallreq_for_div <= `Stop;
+        end
+        else begin
+          /*div_start_o <= `DivStop;
+          signed_div_o <= 1'b1;
+          div_opdata1_o <= `ZeroWord;
+          div_opdata2_o <= `ZeroWord;
+          stallreq_for_div <= `NoStop;*/
+        end
+      end
+      `EXE_DIVU_OP: begin
+        if(div_ready_i == `DivResultNotReady) begin
+          div_start_o <= `DivStart;
+          signed_div_o <= 1'b0;
+          div_opdata1_o <= reg1_i;
+          div_opdata2_o <= reg2_i;
+          stallreq_for_div <= `Stop;
+        end
+        else begin
+          /*div_start_o <= `DivStop;
+          signed_div_o <= 1'b0;
+          div_opdata1_o <= `ZeroWord;
+          div_opdata2_o <= `ZeroWord;
+          stallreq_for_div <= `NoStop;*/
+        end
+      end
+      default: begin
+      end
+    endcase
+  end
+end
+
+always@(*) begin
+  stallreq <= stallreq_for_madd_msub || stallreq_for_div;
+end                             
 
 // AND ANDI OR ORI XOR XORI NOR LUI 
 always@(*) begin
@@ -272,7 +411,7 @@ always@(*) begin
   endcase
 end
 
-// MTHI MTLO
+// MTHI MTLO MADD MADDU MSUB MSUBS DIV DIVU
 always@(*) begin
   if(rst == `RstEnable) begin
     whilo_o <= `WriteDisable; 
@@ -286,6 +425,11 @@ always@(*) begin
         hi_o <= mulres[63:32];
         lo_o <= mulres[31:0];         //take care
       end
+      `EXE_DIV_OP,`EXE_DIVU_OP: begin
+        whilo_o <= `WriteEnable;
+        hi_o <= div_result_i[63:32];
+        lo_o <= div_result_i[31:0];
+      end
       `EXE_MTHI_OP: begin
         whilo_o <= `WriteEnable;
         hi_o <= reg1_i;
@@ -295,6 +439,11 @@ always@(*) begin
         whilo_o <= `WriteEnable;
         hi_o <= HI;         //take care
         lo_o <= reg1_i;
+      end
+      `EXE_MADD_OP,`EXE_MADDU_OP,`EXE_MSUB_OP,`EXE_MSUBU_OP: begin
+        whilo_o <= `WriteEnable;
+        hi_o <= hilo_temp1[63:32];
+        lo_o <= hilo_temp1[31:0]; 
       end
       default: begin
         whilo_o <= `WriteDisable;

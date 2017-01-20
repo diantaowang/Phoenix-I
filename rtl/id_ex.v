@@ -9,6 +9,7 @@ module id_ex(
              id_reg2,
              id_wreg,
              id_wd,
+             stall,
              //output
              ex_aluop,
              ex_alusel,
@@ -26,6 +27,7 @@ input [`RegBus] id_reg1;
 input [`RegBus] id_reg2;
 input id_wreg;
 input [`RegAddrBus] id_wd;
+input [5:0] stall;
 
 output reg [`AluOpBus] ex_aluop;
 output reg [`AluSelBus] ex_alusel;
@@ -43,7 +45,15 @@ always@(posedge clk) begin
     ex_wreg   <= `WriteDisable;
     ex_wd     <= `NOPRegAddr;
   end
-  else begin
+  else if(stall[2] == `Stop && stall[3] == `NoStop) begin
+    ex_aluop  <= `EXE_NOP_OP;
+    ex_alusel <= `EXE_RES_NOP;
+    ex_reg1   <= `ZeroWord;
+    ex_reg2   <= `ZeroWord;
+    ex_wreg   <= `WriteDisable;
+    ex_wd     <= `NOPRegAddr;
+  end
+  else if(stall[2] == `NoStop) begin
     ex_aluop  <= id_aluop;
     ex_alusel <= id_alusel;
     ex_reg1   <= id_reg1;
@@ -51,6 +61,7 @@ always@(posedge clk) begin
     ex_wreg   <= id_wreg; 
     ex_wd     <= id_wd;
   end 
+  else ;    // keep
 end 
 
 endmodule

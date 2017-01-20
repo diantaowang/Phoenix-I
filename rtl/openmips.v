@@ -45,6 +45,19 @@ wire [`RegBus] ex_wdata_o;
 wire ex_whilo_o;
 wire [`RegBus] ex_hi_o;
 wire [`RegBus] ex_lo_o;
+// ex -> ex_mem
+wire [`DoubleBus] hilo_temp_o;
+wire [1:0] cnt_o;
+// ex_mem -> ex
+wire [`DoubleBus] hilo_temp_i;
+wire [1:0] cnt_i;
+// ex && div
+wire signed_div;
+wire div_start;
+wire [`RegBus] div_opdata1;
+wire [`RegBus] div_opdata2;
+wire div_ready;
+wire [`DoubleBus] div_result;
 
 // ex_mem && mem 
 wire mem_wreg_i;
@@ -82,12 +95,18 @@ wire [`RegAddrBus] reg2_addr;
 // hilo_reg && ex
 wire[`RegBus] hi;
 wire[`RegBus] lo;
+
+// ctrl && other
+wire [5:0] stall;
+wire stallreq_from_id;  
+wire stallreq_from_ex;
   
 // pc_reg 
 pc_reg pc_reg0(
     //input
     .clk(clk),
     .rst(rst),
+    .stall(stall),
     //output
     .pc(pc),
     .ce(rom_ce_o)
@@ -102,6 +121,7 @@ if_id if_id0(
     .rst(rst),
     .if_pc(pc),
     .if_inst(rom_data_i),
+    .stall(stall),
     //output
     .id_pc(id_pc_i),
     .id_inst(id_inst_i)
@@ -152,7 +172,8 @@ id id0(
     .reg1_read_o(reg1_read),
     .reg1_addr_o(reg1_addr),
     .reg2_read_o(reg2_read),
-    .reg2_addr_o(reg2_addr) 
+    .reg2_addr_o(reg2_addr),
+    .stallreq(stallreq_from_id)
 );
 
 // id_ex 
@@ -166,6 +187,7 @@ id_ex id_ex0(
     .id_reg2(id_reg2_o),
     .id_wreg(id_wreg_o),
     .id_wd(id_wd_o),
+    .stall(stall),
     //output
     .ex_aluop(ex_aluop_i),
     .ex_alusel(ex_alusel_i),
@@ -195,13 +217,27 @@ ex ex0(
     .wb_whilo_i(wb_whilo_i),
     .wb_hi_i(wb_hi_i),
     .wb_lo_i(wb_lo_i),
+    //input
+    .cnt_i(cnt_i),
+    .hilo_temp_i(hilo_temp_i),
+    //input div
+    .div_ready_i(div_ready),
+    .div_result_i(div_result),
     //output
     .wreg_o(ex_wreg_o),
     .wd_o(ex_wd_o),
     .wdata_o(ex_wdata_o),
     .whilo_o(ex_whilo_o),
     .hi_o(ex_hi_o),
-    .lo_o(ex_lo_o)  
+    .lo_o(ex_lo_o),
+    .cnt_o(cnt_o),
+    .hilo_temp_o(hilo_temp_o),
+    .stallreq(stallreq_from_ex),
+    //output div
+    .div_start_o(div_start),
+    .signed_div_o(signed_div),
+    .div_opdata1_o(div_opdata1),
+    .div_opdata2_o(div_opdata2) 
 );
 
 // ex_mem
@@ -215,13 +251,18 @@ ex_mem ex_mem0(
     .ex_whilo(ex_whilo_o),
     .ex_hi(ex_hi_o),
     .ex_lo(ex_lo_o),
+    .stall(stall),
+    .hilo_i(hilo_temp_o),
+    .cnt_i(cnt_o),
     //output
     .mem_wreg(mem_wreg_i),
     .mem_wd(mem_wd_i),
     .mem_wdata(mem_wdata_i),
     .mem_whilo(mem_whilo_i),
     .mem_hi(mem_hi_i),
-    .mem_lo(mem_lo_i)
+    .mem_lo(mem_lo_i),
+    .hilo_o(hilo_temp_i),
+    .cnt_o(cnt_i)
 );
 
 // mem
@@ -254,6 +295,7 @@ mem_wb mem_wb0(
     .mem_whilo(mem_whilo_o),
     .mem_hi(mem_hi_o),
     .mem_lo(mem_lo_o),
+    .stall(stall),
     //output
     .wb_wreg(wb_wreg_i),
     .wb_wd(wb_wd_i),
@@ -273,6 +315,29 @@ hilo_reg hilo_reg0(
     //output
     .hi_o(hi),
     .lo_o(lo)
+);
+
+ctrl ctrl0(
+    //input 
+    .rst(rst),
+    .stallreq_from_id(stallreq_from_id),
+    .stallreq_from_ex(stallreq_from_ex),
+    //output
+    .stall(stall)
+);
+
+div div0(
+    //input 
+    .rst(rst),
+    .clk(clk),
+    .start_i(div_start),
+    .signed_div_i(signed_div),
+    .opdata1_i(div_opdata1),
+    .opdata2_i(div_opdata2),
+    .annul_i(1'b0),
+    //output
+    .result_o(div_result),
+    .ready(div_ready)
 );
 
 endmodule
