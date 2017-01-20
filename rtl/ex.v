@@ -24,6 +24,9 @@ module ex(
           //input div
           div_ready_i,
           div_result_i,
+          //input jump && branch
+          is_in_delayslot_i,
+          link_address_i,
           //output
           wdata_o,
           wreg_o,
@@ -38,7 +41,7 @@ module ex(
           div_start_o,
           signed_div_o,
           div_opdata1_o,
-          div_opdata2_o     
+          div_opdata2_o   
          );
          
 input rst;
@@ -63,6 +66,9 @@ input [`DoubleBus] hilo_temp_i;
 //input div
 input div_ready_i;
 input [`DoubleBus] div_result_i;
+//input jump && branch
+input is_in_delayslot_i;
+input [`RegBus] link_address_i;
 
 output reg [`RegBus] wdata_o;
 output reg wreg_o;
@@ -404,6 +410,9 @@ always@(*) begin
     end
     `EXE_RES_MUL: begin
       wdata_o <= mulres[31:0];
+    end
+    `EXE_RES_JUMP_BRANCH: begin
+      wdata_o <= link_address_i;
     end
     default: begin
       wdata_o <= `ZeroWord;
