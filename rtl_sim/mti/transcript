@@ -1,6 +1,0 @@
-# vsim -do sim.do -c -pli /opt/spring/verdi/share/PLI/MODELSIM/LINUX/novas_fli.so work.test 
-# ** Note: (vsim-3812) Design is being optimized...
-# ** Note: (vsim-3865) Due to PLI being present, full design access is being specified.
-# ** Error: Failed to find design unit work.test.
-# Optimization failed
-# Error loading design
