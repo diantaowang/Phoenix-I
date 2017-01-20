@@ -14,7 +14,7 @@ output reg [`InstBus] inst;
 reg [`InstBus] init_mem[`InstMemNum-1:0];
   
 initial begin
-  $readmemh("/home/edauser/OpenMIPS/rtl/inst_rom.data", init_mem);
+  $readmemh("/home/edauser/Git_Repo/Phoenix-I/rtl/inst_rom.data", init_mem);
 end
 
 always@(*) begin
