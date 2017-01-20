@@ -29,6 +29,10 @@ wire [`RegBus] id_reg1_o;
 wire [`RegBus] id_reg2_o;
 wire id_wreg_o;
 wire [`RegAddrBus] id_wd_o;
+wire id_is_in_delayslot_o;
+wire [`RegBus] id_link_address_o;
+wire next_inst_in_delayslot;
+wire is_in_delayslot;
 
 // id_ex && ex 
 wire [`AluOpBus] ex_aluop_i;
@@ -37,6 +41,8 @@ wire [`RegBus] ex_reg1_i;
 wire [`RegBus] ex_reg2_i;
 wire ex_wreg_i;
 wire [`RegAddrBus] ex_wd_i;
+wire ex_is_in_delayslot_i;
+wire [`RegBus] ex_link_address_i;
 
 // ex && ex_mem 
 wire ex_wreg_o;
@@ -100,6 +106,10 @@ wire[`RegBus] lo;
 wire [5:0] stall;
 wire stallreq_from_id;  
 wire stallreq_from_ex;
+
+// pc_reg && id
+wire id_branch_flag_o;
+wire [`RegBus] branch_target_address;
   
 // pc_reg 
 pc_reg pc_reg0(
@@ -109,7 +119,9 @@ pc_reg pc_reg0(
     .stall(stall),
     //output
     .pc(pc),
-    .ce(rom_ce_o)
+    .ce(rom_ce_o),
+    .branch_flag_i(id_branch_flag_o),
+    .branch_target_address_i(branch_target_address)
 );
 
 assign rom_addr_o = pc;
@@ -161,6 +173,8 @@ id id0(
     .mem_wreg_i(mem_wreg_o),
     .mem_wd_i(mem_wd_o),
     .mem_wdata_i(mem_wdata_o),
+    //input <- id_ex
+    .is_in_delayslot_i(is_in_delayslot),
     //output -> id_ex
     .aluop_o(id_aluop_o),
     .alusel_o(id_alusel_o),
@@ -168,12 +182,18 @@ id id0(
     .reg2_o(id_reg2_o),
     .wreg_o(id_wreg_o),
     .wd_o(id_wd_o),
+    .is_in_delayslot_o(id_is_in_delayslot_o),
+    .link_addr_o(id_link_address_o),
+    .next_inst_in_delayslot_o(next_inst_in_delayslot),
     //output -> regfile
     .reg1_read_o(reg1_read),
     .reg1_addr_o(reg1_addr),
     .reg2_read_o(reg2_read),
     .reg2_addr_o(reg2_addr),
-    .stallreq(stallreq_from_id)
+    .stallreq(stallreq_from_id),
+    //output -> pc_reg
+    .branch_target_address_o(branch_target_address),
+    .branch_flag_o(id_branch_flag_o)
 );
 
 // id_ex 
@@ -188,13 +208,19 @@ id_ex id_ex0(
     .id_wreg(id_wreg_o),
     .id_wd(id_wd_o),
     .stall(stall),
+    .id_is_in_delayslot(id_is_in_delayslot_o),
+    .id_link_address(id_link_address_o),
+    .next_inst_in_delayslot_i(next_inst_in_delayslot),
     //output
     .ex_aluop(ex_aluop_i),
     .ex_alusel(ex_alusel_i),
     .ex_reg1(ex_reg1_i),
     .ex_reg2(ex_reg2_i),
     .ex_wreg(ex_wreg_i),
-    .ex_wd(ex_wd_i)
+    .ex_wd(ex_wd_i),
+    .ex_is_in_delayslot(ex_is_in_delayslot_i),
+    .ex_link_address(ex_link_address_i),
+    .is_in_delayslot_o(is_in_delayslot)
 );
 
 // ex
@@ -223,6 +249,9 @@ ex ex0(
     //input div
     .div_ready_i(div_ready),
     .div_result_i(div_result),
+    //input jump && branch
+    .is_in_delayslot_i(ex_is_in_delayslot_i),
+    .link_address_i(ex_link_address_i),
     //output
     .wreg_o(ex_wreg_o),
     .wd_o(ex_wd_o),

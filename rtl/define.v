@@ -24,9 +24,13 @@
 `define DivResultNotReady   1'b0
 `define DivStart            1'b1
 `define DivStop             1'b0
+`define Branch              1'b1
+`define NotBranch           1'b0
+`define InDelaySlot         1'b1
+`define NotInDelaySlot      1'b0
 
-//************************** R **************************
-// R_op
+//************************** R ***************************
+// R_op --------------------------------------------------
 `define EXE_SPECIAL_INST    6'b000000                  
 // R_funct                                            
 // shift                                              
@@ -59,13 +63,17 @@
 `define EXE_MULTU           6'b011001
 `define EXE_DIV             6'b011010
 `define EXE_DIVU            6'b011011
+// jump
+`define EXE_JR              6'b001000
+`define EXE_JALR            6'b001001
 // other
 `define EXE_NOP             6'b000000
 `define EXE_SSNOP           6'b000000
 `define EXE_SYNC            6'b001111
+//--------------------------------------------------------
 // R_op
 `define EXE_SPECIAL2_INST   6'b011100
-// R_funct
+// R_funct -----------------------------------------------
 `define EXE_CLZ             6'b100000
 `define EXE_CLO             6'b100001
 `define EXE_MUL             6'b000010
@@ -73,6 +81,7 @@
 `define EXE_MADDU           6'b000001
 `define EXE_MSUB            6'b000100
 `define EXE_MSUBU           6'b000101
+//--------------------------------------------------------
 //************************* end **************************
 
 //************************* I_op *************************
@@ -86,12 +95,27 @@
 `define EXE_ADDIU           6'b001001
 `define EXE_SLTI            6'b001010
 `define EXE_SLTIU           6'b001011
+// branch
+`define EXE_BEQ             6'b000100
+`define EXE_B               6'b000100
+`define EXE_BNE             6'b000101
+`define EXE_BLEZ            6'b000110
+`define EXE_BGTZ            6'b000111
+//--------------------------------------------------------
+`define EXE_REGIMM_INST     6'b000001
+`define EXE_BLTZ            5'b00000
+`define EXE_BLTZAL          5'b10000
+`define EXE_BGEZ            5'b00001
+`define EXE_BGEZAL          5'b10001
+`define EXE_BAL             5'b10001
+//--------------------------------------------------------
 // other
 `define EXE_PREF            6'b110011
 //************************* end **************************
 
 //************************* J_op *************************
-
+`define EXE_J               6'b000010
+`define EXE_JAL             6'b000011
 //************************* end **************************
 
 
@@ -141,7 +165,20 @@
 `define EXE_MSUB_OP         8'b10101010
 `define EXE_MSUBU_OP        8'b10101011 
 `define EXE_DIV_OP          8'b00011010
-`define EXE_DIVU_OP         8'b00011011   
+`define EXE_DIVU_OP         8'b00011011 
+// jump && branch
+`define EXE_JR_OP           8'b00001000
+`define EXE_JALR_OP         8'b00001001
+`define EXE_J_OP            8'b01001111
+`define EXE_JAL_OP          8'b01010000
+`define EXE_BEQ_OP          8'b01010001
+`define EXE_BGTZ_OP         8'b01010100
+`define EXE_BLEZ_OP         8'b01010011
+`define EXE_BNE_OP          8'b01010010 
+`define EXE_BLTZ_OP         8'b01000000
+`define EXE_BLTZAL_OP       8'b01001010
+`define EXE_BGEZ_OP         8'b01000001
+`define EXE_BGEZAL_OP       8'b01001011
 // other
 `define EXE_NOP_OP          8'b0000_0000
 //************************* end **************************
@@ -151,7 +188,8 @@
 `define EXE_RES_SHIFT       3'b010
 `define EXE_RES_MOVE        3'b011
 `define EXE_RES_ARITHMETIC  3'b100
-`define EXE_RES_MUL         3'b101  
+`define EXE_RES_MUL         3'b101
+`define EXE_RES_JUMP_BRANCH 3'b110  
 `define EXE_RES_NOP         3'b000
 
 // rom
