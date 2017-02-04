@@ -12,6 +12,9 @@ module ex_mem(
               stall,
               hilo_i,
               cnt_i,
+              ex_aluop,
+              ex_mem_addr,
+              ex_reg2,
               //output
               mem_wreg,
               mem_wd,
@@ -20,7 +23,10 @@ module ex_mem(
               mem_hi,
               mem_lo,
               hilo_o,
-              cnt_o
+              cnt_o,
+              mem_aluop,
+              mem_mem_addr,
+              mem_reg2
              );
              
 input clk;
@@ -34,6 +40,9 @@ input [`RegBus] ex_lo;
 input [5:0] stall;
 input [`DoubleBus] hilo_i;
 input [1:0] cnt_i;
+input [`AluOpBus] ex_aluop;
+input [`RegBus] ex_mem_addr;
+input [`RegBus] ex_reg2;
 
 output reg mem_wreg;
 output reg [`RegAddrBus] mem_wd;
@@ -43,6 +52,9 @@ output reg [`RegBus] mem_hi;
 output reg [`RegBus] mem_lo;
 output reg [`DoubleBus] hilo_o;
 output reg [1:0] cnt_o;
+output reg [`AluOpBus] mem_aluop;
+output reg [`RegBus] mem_mem_addr;
+output reg [`RegBus] mem_reg2;
 
 always@(posedge clk) begin
   if(rst == `RstEnable) begin
@@ -54,6 +66,9 @@ always@(posedge clk) begin
     mem_lo <= `ZeroWord;
     hilo_o <= {`ZeroWord,`ZeroWord};
     cnt_o  <= 2'b00;
+    mem_aluop <= `EXE_NOP_OP;
+    mem_mem_addr <= `ZeroWord;
+    mem_reg2 <= `ZeroWord;
   end
   else if(stall[3] == `Stop && stall[4] == `NoStop) begin
     mem_wreg  <= `WriteDisable;
@@ -63,7 +78,10 @@ always@(posedge clk) begin
     mem_hi <= `ZeroWord;
     mem_lo <= `ZeroWord;
     hilo_o <= hilo_i;
-    cnt_o  <= cnt_i;  
+    cnt_o  <= cnt_i;
+    mem_aluop <= `EXE_NOP_OP;
+    mem_mem_addr <= `ZeroWord;
+    mem_reg2 <= `ZeroWord;  
   end
   else if(stall[3] == `NoStop) begin
     mem_wreg  <= ex_wreg;
@@ -74,6 +92,9 @@ always@(posedge clk) begin
     mem_lo <= ex_lo;
     hilo_o <= {`ZeroWord,`ZeroWord};
     cnt_o  <= 2'b00;
+    mem_aluop <= ex_aluop;
+    mem_mem_addr <= ex_mem_addr;
+    mem_reg2 <= ex_reg2;
   end
   else begin
     hilo_o <= hilo_i;

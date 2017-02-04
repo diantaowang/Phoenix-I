@@ -27,6 +27,8 @@ module ex(
           //input jump && branch
           is_in_delayslot_i,
           link_address_i,
+          //input load && store
+          inst_i,
           //output
           wdata_o,
           wreg_o,
@@ -41,7 +43,11 @@ module ex(
           div_start_o,
           signed_div_o,
           div_opdata1_o,
-          div_opdata2_o   
+          div_opdata2_o,
+          //output load && store
+          aluop_o,
+          mem_addr_o,
+          reg2_o  
          );
          
 input rst;
@@ -69,6 +75,8 @@ input [`DoubleBus] div_result_i;
 //input jump && branch
 input is_in_delayslot_i;
 input [`RegBus] link_address_i;
+//output load && store
+input [`RegBus] inst_i; 
 
 output reg [`RegBus] wdata_o;
 output reg wreg_o;
@@ -84,6 +92,10 @@ output reg div_start_o;
 output reg signed_div_o;
 output reg [`RegBus] div_opdata1_o;
 output reg [`RegBus] div_opdata2_o;
+//output load && store
+output [`AluOpBus] aluop_o;
+output [`RegBus] mem_addr_o;
+output [`RegBus] reg2_o;
 
 reg [`RegBus] logicout;
 reg [`RegBus] shiftres;
@@ -93,7 +105,7 @@ reg [`RegBus] LO;
 
 reg [`RegBus] arithmeticres;
 reg [`DoubleBus] mulres;
-reg  [`DoubleBus] hilo_temp1;   //temp value
+reg [`DoubleBus] hilo_temp1;   //temp value
 reg stallreq_for_madd_msub;     //stall request 
 reg stallreq_for_div; 
 wire ov_sum;
@@ -105,7 +117,6 @@ wire [`RegBus] result_sum;
 wire [`RegBus] opdata1_mult;
 wire [`RegBus] opdata2_mult;
 wire [`DoubleBus] hilo_temp;
-
 
 assign reg2_i_mux = ((aluop_i == `EXE_SUB_OP) || (aluop_i == `EXE_SUBU_OP) ||
                     (aluop_i == `EXE_SLT_OP)) ? (~reg2_i)+1 : (reg2_i);
@@ -120,6 +131,11 @@ assign reg1_lt_reg2 = (aluop_i == `EXE_SLT_OP) ?
                       (!reg1_i[31] && !reg2_i[31] && result_sum[31]) : (reg1_i < reg2_i);
                       
 assign reg1_i_not = ~reg1_i;
+
+// load && store
+assign aluop_o = aluop_i;
+assign mem_addr_o = reg1_i + {{16{inst_i[15]}},inst_i[15:0]};
+assign reg2_o = reg2_i;
 
 // SLT SLTU SLTI SLTIU ADD ADDU ADDI ADDIU SUB SUBU CLZ CLO
 always@(*) begin

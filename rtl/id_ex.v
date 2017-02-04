@@ -13,6 +13,7 @@ module id_ex(
              id_is_in_delayslot,
              id_link_address,
              next_inst_in_delayslot_i,
+             id_inst,
              //output
              ex_aluop,
              ex_alusel,
@@ -22,7 +23,8 @@ module id_ex(
              ex_wd,
              ex_is_in_delayslot,
              ex_link_address,
-             is_in_delayslot_o
+             is_in_delayslot_o,
+             ex_inst
             );
             
 input clk;
@@ -38,6 +40,8 @@ input [5:0] stall;
 input id_is_in_delayslot;
 input [`RegBus] id_link_address;
 input next_inst_in_delayslot_i;
+// 
+input [`RegBus] id_inst;
 
 output reg [`AluOpBus] ex_aluop;
 output reg [`AluSelBus] ex_alusel;
@@ -49,6 +53,8 @@ output reg [`RegAddrBus] ex_wd;
 output reg ex_is_in_delayslot;
 output reg [`RegBus] ex_link_address;
 output reg is_in_delayslot_o;
+//
+output reg [`RegBus] ex_inst;
 
 
 always@(posedge clk) begin
@@ -62,6 +68,7 @@ always@(posedge clk) begin
     ex_is_in_delayslot <= `NotInDelaySlot;
     ex_link_address <= `ZeroWord;
     is_in_delayslot_o <= `NotInDelaySlot;
+    ex_inst <= `ZeroWord;
   end
   else if(stall[2] == `Stop && stall[3] == `NoStop) begin
     ex_aluop  <= `EXE_NOP_OP;
@@ -73,7 +80,9 @@ always@(posedge clk) begin
     ex_is_in_delayslot <= `NotInDelaySlot;
     ex_link_address <= `ZeroWord;
     // stall request for id will not lead to delayslot
-    is_in_delayslot_o <= `NotInDelaySlot;      
+    is_in_delayslot_o <= `NotInDelaySlot; 
+    //
+    ex_inst   <= `ZeroWord;    
   end
   else if(stall[2] == `NoStop) begin
     ex_aluop  <= id_aluop;
@@ -85,8 +94,10 @@ always@(posedge clk) begin
     ex_is_in_delayslot <= id_is_in_delayslot;
     ex_link_address <= id_link_address;
     is_in_delayslot_o <= next_inst_in_delayslot_i;
+    //
+    ex_inst   <= id_inst;
   end 
-  else ;    // (stall[2] == 1 && stall[2] == 1) <=> keep
+  else ;    // (stall[2] == 1 && stall[3] == 1) <=> keep
 end 
 
 endmodule
