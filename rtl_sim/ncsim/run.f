@@ -31,3 +31,4 @@
 ../../rtl/if_id.v
 ../../rtl/mem_wb.v
 ../../rtl/pc_reg.v
+../../rtl/LLbit_reg.v
