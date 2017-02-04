@@ -4,16 +4,30 @@ module openmips(
                 clk,
                 rst,
                 rom_data_i,
+                //input ram
+                ram_data_i,
                 //output
                 rom_addr_o,       
-                rom_ce_o          
+                rom_ce_o,
+                //output ram
+                ram_addr_o,
+                ram_we_o,
+                ram_sel_o,
+                ram_data_o,
+                ram_ce_o          
                );
                
 input clk;
 input rst;
 input [`InstBus] rom_data_i;
+input [`InstBus] ram_data_i;
 output rom_ce_o;
 output [`InstAddrBus] rom_addr_o;
+output [`InstBus] ram_addr_o;
+output ram_we_o;
+output [3:0] ram_sel_o;
+output [`InstBus] ram_data_o;
+output ram_ce_o;
 
 // openmips && extern
 wire [`InstAddrBus] pc;
@@ -33,6 +47,7 @@ wire id_is_in_delayslot_o;
 wire [`RegBus] id_link_address_o;
 wire next_inst_in_delayslot;
 wire is_in_delayslot;
+wire [`RegBus] id_inst_o;
 
 // id_ex && ex 
 wire [`AluOpBus] ex_aluop_i;
@@ -43,6 +58,7 @@ wire ex_wreg_i;
 wire [`RegAddrBus] ex_wd_i;
 wire ex_is_in_delayslot_i;
 wire [`RegBus] ex_link_address_i;
+wire [`RegBus] ex_inst_i;
 
 // ex && ex_mem 
 wire ex_wreg_o;
@@ -51,6 +67,9 @@ wire [`RegBus] ex_wdata_o;
 wire ex_whilo_o;
 wire [`RegBus] ex_hi_o;
 wire [`RegBus] ex_lo_o;
+wire [`AluOpBus] ex_aluop_o;
+wire [`RegBus] ex_mem_addr_o;
+wire [`RegBus] ex_reg2_o;
 // ex -> ex_mem
 wire [`DoubleBus] hilo_temp_o;
 wire [1:0] cnt_o;
@@ -72,6 +91,9 @@ wire [`RegBus] mem_wdata_i;
 wire mem_whilo_i;
 wire [`RegBus] mem_hi_i;
 wire [`RegBus] mem_lo_i;
+wire [`AluOpBus] mem_aluop_i;
+wire [`RegBus] mem_mem_addr_i;
+wire [`RegBus] mem_reg2_i;
 
 // mem && mem_wb (ex)
 wire mem_wreg_o;
@@ -193,7 +215,8 @@ id id0(
     .stallreq(stallreq_from_id),
     //output -> pc_reg
     .branch_target_address_o(branch_target_address),
-    .branch_flag_o(id_branch_flag_o)
+    .branch_flag_o(id_branch_flag_o),
+    .inst_o(id_inst_o)
 );
 
 // id_ex 
@@ -211,6 +234,7 @@ id_ex id_ex0(
     .id_is_in_delayslot(id_is_in_delayslot_o),
     .id_link_address(id_link_address_o),
     .next_inst_in_delayslot_i(next_inst_in_delayslot),
+    .id_inst(id_inst_o),
     //output
     .ex_aluop(ex_aluop_i),
     .ex_alusel(ex_alusel_i),
@@ -220,7 +244,8 @@ id_ex id_ex0(
     .ex_wd(ex_wd_i),
     .ex_is_in_delayslot(ex_is_in_delayslot_i),
     .ex_link_address(ex_link_address_i),
-    .is_in_delayslot_o(is_in_delayslot)
+    .is_in_delayslot_o(is_in_delayslot),
+    .ex_inst(ex_inst_i)
 );
 
 // ex
@@ -252,6 +277,8 @@ ex ex0(
     //input jump && branch
     .is_in_delayslot_i(ex_is_in_delayslot_i),
     .link_address_i(ex_link_address_i),
+    //input output load && store
+    .inst_i(ex_inst_i),
     //output
     .wreg_o(ex_wreg_o),
     .wd_o(ex_wd_o),
@@ -266,7 +293,11 @@ ex ex0(
     .div_start_o(div_start),
     .signed_div_o(signed_div),
     .div_opdata1_o(div_opdata1),
-    .div_opdata2_o(div_opdata2) 
+    .div_opdata2_o(div_opdata2),
+    //output output load && store
+    .aluop_o(ex_aluop_o),
+    .mem_addr_o(ex_mem_addr_o),
+    .reg2_o(ex_reg2_o)
 );
 
 // ex_mem
@@ -283,6 +314,9 @@ ex_mem ex_mem0(
     .stall(stall),
     .hilo_i(hilo_temp_o),
     .cnt_i(cnt_o),
+    .ex_aluop(ex_aluop_o),
+    .ex_mem_addr(ex_mem_addr_o),
+    .ex_reg2(ex_reg2_o),
     //output
     .mem_wreg(mem_wreg_i),
     .mem_wd(mem_wd_i),
@@ -291,7 +325,10 @@ ex_mem ex_mem0(
     .mem_hi(mem_hi_i),
     .mem_lo(mem_lo_i),
     .hilo_o(hilo_temp_i),
-    .cnt_o(cnt_i)
+    .cnt_o(cnt_i),
+    .mem_aluop(mem_aluop_i),
+    .mem_mem_addr(mem_mem_addr_i),
+    .mem_reg2(mem_reg2_i)
 );
 
 // mem
@@ -304,13 +341,24 @@ mem mem0(
     .whilo_i(mem_whilo_i),
     .hi_i(mem_hi_i),
     .lo_i(mem_lo_i),
+    //input load && store
+    .aluop_i(mem_aluop_i),
+    .mem_addr_i(mem_mem_addr_i),
+    .reg2_i(mem_reg2_i),
+    .mem_data_i(ram_data_i),
     //output
     .wreg_o(mem_wreg_o),
     .wd_o(mem_wd_o),
     .wdata_o(mem_wdata_o),
     .whilo_o(mem_whilo_o),
     .hi_o(mem_hi_o),
-    .lo_o(mem_lo_o)
+    .lo_o(mem_lo_o),
+    //output load && store
+    .mem_addr_o(ram_addr_o),
+    .mem_we_o(ram_we_o),
+    .mem_sel_o(ram_sel_o),
+    .mem_data_o(ram_data_o),
+    .mem_ce_o(ram_ce_o) 
 );
 
 // mem_wb
