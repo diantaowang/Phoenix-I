@@ -13,6 +13,9 @@ module mem(
            mem_addr_i,
            reg2_i,
            mem_data_i,
+           LLbit_i,
+           wb_LLbit_we_i,
+           wb_LLbit_value_i,
            //output
            wreg_o,
            wd_o,
@@ -25,7 +28,9 @@ module mem(
            mem_we_o,
            mem_sel_o,
            mem_data_o,
-           mem_ce_o
+           mem_ce_o,
+           LLbit_we_o,
+           LLbit_value_o
           );
           
 input rst;
@@ -40,6 +45,9 @@ input [`AluOpBus] aluop_i;
 input [`RegBus] mem_addr_i;
 input [`RegBus] reg2_i;
 input [`RegBus] mem_data_i;
+input LLbit_i;
+input wb_LLbit_we_i;
+input wb_LLbit_value_i;
 
 output reg wreg_o;
 output reg [`RegAddrBus] wd_o;
@@ -53,10 +61,25 @@ output wire mem_we_o;
 output reg [3:0] mem_sel_o;
 output reg [`RegBus] mem_data_o;
 output reg mem_ce_o;
+output reg LLbit_we_o;
+output reg LLbit_value_o;
 
 reg mem_we;
+reg LLbit;
 
 assign mem_we_o = mem_we;
+
+always@(*) begin
+	if(rst == `RstEnable) begin
+		LLbit <= 1'b0;
+	end else begin
+		if(wb_LLbit_we_i == `WriteEnable) begin
+			LLbit <= wb_LLbit_value_i;
+		end else begin
+      LLbit <= LLbit_i;
+    end
+  end
+end
           
 always@(*) begin
   if(rst == `RstEnable) begin
@@ -71,6 +94,8 @@ always@(*) begin
     mem_sel_o <= 4'b0000;
     mem_data_o <= `ZeroWord; 
     mem_ce_o <= `ChipDisable;
+    LLbit_we_o <= `WriteDisable;
+    LLbit_value_o <= 1'b0;
   end
   else begin
     wreg_o  <= wreg_i;
@@ -84,6 +109,8 @@ always@(*) begin
     mem_sel_o <= 4'b1111;
     mem_data_o <= `ZeroWord; 
     mem_ce_o <= `ChipDisable;
+    LLbit_we_o <= `WriteDisable;
+    LLbit_value_o <= 1'b0;
     case(aluop_i)
       `EXE_LB_OP: begin
       	mem_addr_o <= mem_addr_i;
@@ -173,7 +200,7 @@ always@(*) begin
         	end	
         endcase
     	end
-    	`EXE_LW_OP: begin
+    	/*`EXE_LW_OP: begin
       	mem_addr_o <= mem_addr_i;
         mem_we <= `WriteDisable;
         mem_ce_o <= `ChipEnable;
@@ -186,14 +213,14 @@ always@(*) begin
         		wdata_o <= `ZeroWord;
         	end	
         endcase
-    	end
-    	/*`EXE_LW_OP: begin
+    	end*/
+    	`EXE_LW_OP: begin
       	mem_addr_o <= mem_addr_i;
         mem_we <= `WriteDisable;
         mem_ce_o <= `ChipEnable;
     		wdata_o <= mem_data_i;
     		mem_sel_o <= 4'b1111;
-    	end*/
+    	end
     	`EXE_LWL_OP: begin
       	mem_addr_o <= mem_addr_i;
         mem_we <= `WriteDisable;
@@ -239,6 +266,15 @@ always@(*) begin
         		wdata_o <= `ZeroWord;
         	end	
         endcase
+    	end
+    	`EXE_LL_OP: begin
+      	mem_addr_o <= mem_addr_i;
+        mem_we <= `WriteDisable;
+        mem_ce_o <= `ChipEnable;
+    		wdata_o <= mem_data_i;
+    		mem_sel_o <= 4'b1111;
+    		LLbit_we_o <= `WriteEnable;
+        LLbit_value_o <= 1'b1;
     	end
     	`EXE_SB_OP: begin
       	mem_addr_o <= mem_addr_i;
@@ -339,6 +375,21 @@ always@(*) begin
         	end	
         endcase
     	end
+    	`EXE_SC_OP: begin
+    	  if(LLbit == 1'b1) begin
+	      	mem_addr_o <= mem_addr_i;
+	        mem_we <= `WriteEnable;
+	        mem_ce_o <= `ChipEnable;
+	        mem_data_o <= reg2_i;
+	        mem_sel_o <= 4'b1111;
+	        LLbit_we_o <= `WriteEnable;
+    		LLbit_value_o <= 1'b0;
+	        wdata_o <= 32'h1;
+	      end
+	      else begin
+	      	wdata_o <= 32'h0;
+	      end
+        end
     	default: begin
     	end
     endcase

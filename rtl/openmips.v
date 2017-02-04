@@ -102,6 +102,8 @@ wire [`RegBus] mem_wdata_o;
 wire mem_whilo_o;             
 wire [`RegBus] mem_hi_o;
 wire [`RegBus] mem_lo_o;
+wire mem_LLbit_we_o;
+wire mem_LLbit_value_o;
 
 // mem_wb && regfile
 wire wb_wreg_i;
@@ -111,6 +113,9 @@ wire [`RegBus] wb_wdata_i;
 wire wb_whilo_i;
 wire [`RegBus] wb_hi_i;
 wire [`RegBus] wb_lo_i;
+// mem_wb && LLbit_reg (mem)
+wire wb_LLbit_we_i;
+wire wb_LLbit_value_i;
 
 // id && regfile
 wire reg1_read;
@@ -132,6 +137,9 @@ wire stallreq_from_ex;
 // pc_reg && id
 wire id_branch_flag_o;
 wire [`RegBus] branch_target_address;
+
+// LLbir_reg && mem
+wire LLbit;
   
 // pc_reg 
 pc_reg pc_reg0(
@@ -346,6 +354,9 @@ mem mem0(
     .mem_addr_i(mem_mem_addr_i),
     .reg2_i(mem_reg2_i),
     .mem_data_i(ram_data_i),
+    .LLbit_i(LLbit),
+    .wb_LLbit_we_i(wb_LLbit_we_i),
+    .wb_LLbit_value_i(wb_LLbit_value_i),
     //output
     .wreg_o(mem_wreg_o),
     .wd_o(mem_wd_o),
@@ -358,7 +369,9 @@ mem mem0(
     .mem_we_o(ram_we_o),
     .mem_sel_o(ram_sel_o),
     .mem_data_o(ram_data_o),
-    .mem_ce_o(ram_ce_o) 
+    .mem_ce_o(ram_ce_o),
+    .LLbit_we_o(mem_LLbit_we_o),
+    .LLbit_value_o(mem_LLbit_value_o) 
 );
 
 // mem_wb
@@ -373,13 +386,17 @@ mem_wb mem_wb0(
     .mem_hi(mem_hi_o),
     .mem_lo(mem_lo_o),
     .stall(stall),
+    .mem_LLbit_we(mem_LLbit_we_o),
+    .mem_LLbit_value(mem_LLbit_value_o),
     //output
     .wb_wreg(wb_wreg_i),
     .wb_wd(wb_wd_i),
     .wb_wdata(wb_wdata_i),
     .wb_whilo(wb_whilo_i),
     .wb_hi(wb_hi_i),
-    .wb_lo(wb_lo_i)
+    .wb_lo(wb_lo_i),
+    .wb_LLbit_we(wb_LLbit_we_i),
+    .wb_LLbit_value(wb_LLbit_value_i)
 );
 
 hilo_reg hilo_reg0(
@@ -415,6 +432,17 @@ div div0(
     //output
     .result_o(div_result),
     .ready(div_ready)
+);
+
+LLbit_reg LLbit_reg0(
+  //input
+  .clk(clk),
+  .rst(rst),
+  .we(wb_LLbit_we_i),
+  .LLbit_i(wb_LLbit_value_i),
+  .flush(1'b0),
+  //output
+  .LLbit_o(LLbit)
 );
 
 endmodule
