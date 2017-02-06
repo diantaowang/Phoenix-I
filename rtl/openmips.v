@@ -196,6 +196,7 @@ id id0(
     .reg1_data_i(reg1_data),
     .reg2_data_i(reg2_data),
     //input <- ex
+    .ex_aluop_i(ex_aluop_o),
     .ex_wreg_i(ex_wreg_o),            
     .ex_wd_i(ex_wd_o),              
     .ex_wdata_i(ex_wdata_o),          

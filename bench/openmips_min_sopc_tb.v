@@ -29,7 +29,4 @@ initial begin
 end
 `endif	
 
-endmodule
-
-	
-	
+endmodule	
