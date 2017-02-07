@@ -26,6 +26,7 @@ openmips openmips0(
     .rst(rst),
     .rom_data_i(inst),
     .ram_data_i(mem_data_o),
+    .int_i(6'b000000),
     //output
     .rom_addr_o(inst_addr),       
     .rom_ce_o(rom_ce),
@@ -33,7 +34,8 @@ openmips openmips0(
     .ram_we_o(mem_we_i),
     .ram_sel_o(mem_sel_i),
     .ram_data_o(mem_data_i),
-    .ram_ce_o(mem_ce_i) 
+    .ram_ce_o(mem_ce_i),
+    .timer_int_o() 
 );
     
 inst_rom inst_rom0(

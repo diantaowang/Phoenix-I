@@ -28,6 +28,8 @@
 `define NotBranch           1'b0
 `define InDelaySlot         1'b1
 `define NotInDelaySlot      1'b0
+`define InterruptAssert     1'b1
+`define InterruptNotAssert  1'b0
 
 //************************** R ***************************
 // R_op --------------------------------------------------
@@ -133,6 +135,11 @@
 `define EXE_JAL             6'b000011
 //************************* end **************************
 
+//************************* COP0 *************************
+`define EXE_COP0            6'b010000
+`define COP0_MT             5'b00100
+`define COP0_MF             5'b00000
+//************************* end **************************
 
 
 //************************ AluOp *************************
@@ -209,6 +216,9 @@
 `define EXE_SWR_OP          8'b11101110
 `define EXE_LL_OP           8'b11110000
 `define EXE_SC_OP           8'b11111000
+// cp0
+`define EXE_MFC0_OP         8'b01011101
+`define EXE_MTC0_OP         8'b01100000
 // other
 `define EXE_NOP_OP          8'b0000_0000
 //************************* end **************************
@@ -232,8 +242,8 @@
 // ram
 `define DataAddrBus        31:0
 `define DataBus            31:0
-`define DataMemNum 				 131071
-`define DataMemNumLog2 		 17
+`define DataMemNum         131071
+`define DataMemNumLog2     17
 `define ByteWidth          7:0
 
 // register
@@ -245,6 +255,15 @@
 `define RegNum              32
 `define RegNumLog2          5
 `define NOPRegAddr          5'b00000
+
+// cp0
+`define CP0_REG_COUNT       5'b01001      //RW
+`define CP0_REG_COMPARE     5'b01011      //RW
+`define CP0_REG_STATUS      5'b01100      //RW
+`define CP0_REG_CAUSE       5'b01101      //R
+`define CP0_REG_EPC         5'b01110      //RW
+`define CP0_REG_PrId        5'b01111      //R
+`define CP0_REG_CONFIG      5'b10000      //R
 
 
 

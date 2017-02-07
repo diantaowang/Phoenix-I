@@ -29,6 +29,14 @@ module ex(
           link_address_i,
           //input load && store
           inst_i,
+          //input cp0
+          cp0_reg_data_i,
+          wb_cp0_reg_data,
+          wb_cp0_reg_write_addr,
+          wb_cp0_reg_we,
+          mem_cp0_reg_data,
+          mem_cp0_reg_write_addr,
+          mem_cp0_reg_we,
           //output
           wdata_o,
           wreg_o,
@@ -47,7 +55,12 @@ module ex(
           //output load && store
           aluop_o,
           mem_addr_o,
-          reg2_o  
+          reg2_o, 
+          //output cp0
+          cp0_reg_read_addr_o,
+          cp0_reg_data_o,
+          cp0_reg_write_addr_o,
+          cp0_reg_we_o 
          );
          
 input rst;
@@ -75,8 +88,16 @@ input [`DoubleBus] div_result_i;
 //input jump && branch
 input is_in_delayslot_i;
 input [`RegBus] link_address_i;
-//output load && store
+//input load && store
 input [`RegBus] inst_i; 
+//input cp0
+input [`RegBus] cp0_reg_data_i;
+input [`RegBus] wb_cp0_reg_data;
+input [4:0] wb_cp0_reg_write_addr;
+input wb_cp0_reg_we;
+input [`RegBus] mem_cp0_reg_data;
+input [4:0] mem_cp0_reg_write_addr;
+input mem_cp0_reg_we;
 
 output reg [`RegBus] wdata_o;
 output reg wreg_o;
@@ -96,6 +117,11 @@ output reg [`RegBus] div_opdata2_o;
 output [`AluOpBus] aluop_o;
 output [`RegBus] mem_addr_o;
 output [`RegBus] reg2_o;
+//output cp0
+output reg [4:0] cp0_reg_read_addr_o;
+output reg [`RegBus] cp0_reg_data_o;
+output reg [4:0] cp0_reg_write_addr_o;
+output reg cp0_reg_we_o;
 
 reg [`RegBus] logicout;
 reg [`RegBus] shiftres;
@@ -376,7 +402,7 @@ always@(*) begin
     {HI,LO} <= {hi_i,lo_i};
 end
 
-// MOVZ MOVN MFHI MFLO
+// MOVZ MOVN MFHI MFLO MFC0
 always@(*) begin
   if(rst == `RstEnable) begin
     moveres <= `ZeroWord;
@@ -395,10 +421,42 @@ always@(*) begin
       `EXE_MFLO_OP: begin
         moveres <= LO;
       end
+      `EXE_MFC0_OP: begin
+        cp0_reg_read_addr_o <= inst_i[15:11];
+        if(mem_cp0_reg_we == 1'b1 && mem_cp0_reg_write_addr == inst_i[15:11]) begin
+          moveres <= mem_cp0_reg_data;
+        end
+        else if(wb_cp0_reg_we == 1'b1 && wb_cp0_reg_write_addr == inst_i[15:11]) begin
+          moveres <= wb_cp0_reg_data;
+        end 
+        else begin
+          moveres <= cp0_reg_data_i;
+        end
+      end
       default: begin
         moveres <= `ZeroWord;
       end
     endcase 
+  end
+end
+
+// MTC0
+always@(*) begin
+  if(rst == `RstEnable) begin
+    cp0_reg_read_addr_o <= 5'b00000;
+    cp0_reg_data_o <= `ZeroWord;
+    cp0_reg_write_addr_o = 5'b00000;
+    cp0_reg_we_o <= `WriteDisable;
+  end
+  else begin
+    cp0_reg_data_o <= reg2_i;
+    cp0_reg_write_addr_o = 5'b00000;
+    cp0_reg_we_o <= `WriteDisable;
+    if(aluop_i == `EXE_MTC0_OP) begin
+      cp0_reg_write_addr_o = inst_i[15:11];
+      cp0_reg_we_o <= `WriteEnable;
+    end
+    else ;
   end
 end
 
