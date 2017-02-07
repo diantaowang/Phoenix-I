@@ -518,6 +518,18 @@ always@(*) begin
         reg1_read_o <= 1'b1;     reg2_read_o <= 1'b1;     instvalid <= `InstValid;
         wd_o <= inst_i[20:16];
       end
+      `EXE_COP0: begin
+        if(inst_i[25:21] == `COP0_MT && inst_i[10:0] == 11'b0) begin
+          wreg_o <= `WriteDisable; aluop_o <= `EXE_MTC0_OP; alusel_o <=`EXE_RES_MOVE;
+          reg1_read_o <= 1'b0;     reg2_read_o <= 1'b1;     instvalid <= `InstValid;
+        end
+        else if(inst_i[25:21] == `COP0_MF && inst_i[10:0] == 11'b0) begin
+          wreg_o <= `WriteEnable;  aluop_o <= `EXE_MFC0_OP; alusel_o <=`EXE_RES_MOVE;
+          reg1_read_o <= 1'b0;     reg2_read_o <= 1'b0;     instvalid <= `InstValid;
+          wd_o <= inst_i[20:16];
+        end 
+        else ;
+      end
       default: begin  
       end 
     endcase                 //case op
