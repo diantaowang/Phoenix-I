@@ -39,7 +39,7 @@ output reg [`RegBus] prid_o;
 
 // read: mfc0
 always@(*) begin
-  if(rst == `RstDisable) begin
+  if(rst == `RstEnable) begin
     data_o <= `ZeroWord;
   end 
   else begin
