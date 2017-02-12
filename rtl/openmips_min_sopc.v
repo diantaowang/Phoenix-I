@@ -19,6 +19,8 @@ wire [3:0] mem_sel_i;
 wire mem_we_i; 
 wire mem_ce_i;
 wire [`RegBus] mem_data_o;
+// timer_interrupt
+wire timer_int;
 
 openmips openmips0(
     //input 
@@ -26,7 +28,7 @@ openmips openmips0(
     .rst(rst),
     .rom_data_i(inst),
     .ram_data_i(mem_data_o),
-    .int_i(6'b000000),
+    .int_i({5'b00000,timer_int}),
     //output
     .rom_addr_o(inst_addr),       
     .rom_ce_o(rom_ce),
@@ -35,7 +37,7 @@ openmips openmips0(
     .ram_sel_o(mem_sel_i),
     .ram_data_o(mem_data_i),
     .ram_ce_o(mem_ce_i),
-    .timer_int_o() 
+    .timer_int_o(timer_int) 
 );
     
 inst_rom inst_rom0(
