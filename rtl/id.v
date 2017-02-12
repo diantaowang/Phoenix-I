@@ -32,7 +32,10 @@ module id(
           branch_target_address_o,
           branch_flag_o,
           //
-          inst_o
+          inst_o,
+          //exception
+          excepttype_o,
+          current_inst_addr_o
          );
          
 input rst;
@@ -72,6 +75,9 @@ output reg [`RegBus] branch_target_address_o;
 output reg branch_flag_o;
 // load && store
 output wire [`RegBus] inst_o;
+// exception
+output wire [31:0] excepttype_o;
+output wire [`RegBus] current_inst_addr_o;
 
 wire [5:0] op;
 wire [4:0] op2;
@@ -81,6 +87,8 @@ reg [`RegBus] imm;
 reg instvalid;
 reg stallreq_for_reg1_loadrelate;
 reg stallreq_for_reg2_loadrelate;
+reg excepttype_is_syscall;
+reg excepttype_is_eret;
 
 wire [`RegBus] pc_plus_4;
 wire [`RegBus] pc_plus_8;
@@ -105,6 +113,10 @@ assign pre_inst_is_load = (ex_aluop_i == `EXE_LB_OP || ex_aluop_i == `EXE_LBU_OP
 // load && store 
 assign inst_o = inst_i;
 
+// exception
+assign excepttype_o = {19'b0,excepttype_is_eret,2'b00,instvalid,excepttype_is_syscall,8'b0};
+assign current_inst_addr_o = pc_i;
+
 always@(*) begin
   if(rst == `RstEnable) begin
     aluop_o <= `EXE_NOP_OP;
@@ -124,7 +136,10 @@ always@(*) begin
     link_addr_o <= `ZeroWord;
     next_inst_in_delayslot_o <= `NotInDelaySlot;
     branch_target_address_o <= `ZeroWord;
-    branch_flag_o <= `NotBranch;       
+    branch_flag_o <= `NotBranch;
+    // exception
+    excepttype_is_syscall <= 1'b0;
+    excepttype_is_eret <= 1'b0;      
   end
   else begin
     aluop_o <= `EXE_NOP_OP;
@@ -142,7 +157,10 @@ always@(*) begin
     link_addr_o <= `ZeroWord;
     next_inst_in_delayslot_o <= `NotInDelaySlot;
     branch_target_address_o <= `ZeroWord;
-    branch_flag_o <= `NotBranch;         
+    branch_flag_o <= `NotBranch;
+    // exception
+    excepttype_is_syscall <= 1'b0;
+    excepttype_is_eret <= 1'b0;         
     case(op)
       `EXE_SPECIAL_INST: begin
         case(op2) 
@@ -260,6 +278,35 @@ always@(*) begin
                 next_inst_in_delayslot_o <= `InDelaySlot;
                 branch_flag_o <= `Branch; 
                 branch_target_address_o <= reg1_o;
+              end
+              `EXE_TEQ: begin
+                wreg_o <= `WriteDisable; aluop_o <= `EXE_TEQ_OP;  alusel_o <=`EXE_RES_NOP;
+                reg1_read_o <= 1'b1;     reg2_read_o <= 1'b1;     instvalid <= `InstValid;
+              end
+              `EXE_TGE: begin
+                wreg_o <= `WriteDisable; aluop_o <= `EXE_TGE_OP;  alusel_o <=`EXE_RES_NOP;
+                reg1_read_o <= 1'b1;     reg2_read_o <= 1'b1;     instvalid <= `InstValid;
+              end
+              `EXE_TGEU: begin
+                wreg_o <= `WriteDisable; aluop_o <= `EXE_TGEU_OP; alusel_o <=`EXE_RES_NOP;
+                reg1_read_o <= 1'b1;     reg2_read_o <= 1'b1;     instvalid <= `InstValid;
+              end
+              `EXE_TLT: begin
+                wreg_o <= `WriteDisable; aluop_o <= `EXE_TLT_OP;  alusel_o <=`EXE_RES_NOP;
+                reg1_read_o <= 1'b1;     reg2_read_o <= 1'b1;     instvalid <= `InstValid;
+              end
+              `EXE_TLTU: begin
+                wreg_o <= `WriteDisable; aluop_o <= `EXE_TLTU_OP;  alusel_o <=`EXE_RES_NOP;
+                reg1_read_o <= 1'b1;     reg2_read_o <= 1'b1;     instvalid <= `InstValid;
+              end
+              `EXE_TNE: begin
+                wreg_o <= `WriteDisable; aluop_o <= `EXE_TNE_OP;  alusel_o <=`EXE_RES_NOP;
+                reg1_read_o <= 1'b1;     reg2_read_o <= 1'b1;     instvalid <= `InstValid;
+              end
+              `EXE_SYSCALL: begin
+                wreg_o <= `WriteDisable; aluop_o <= `EXE_SYSCALL_OP;  alusel_o <=`EXE_RES_NOP;
+                reg1_read_o <= 1'b0;     reg2_read_o <= 1'b0;         instvalid <= `InstValid;
+                excepttype_is_syscall <= 1'b1;
               end
               default: begin            
               end
@@ -449,6 +496,36 @@ always@(*) begin
             end
             else ;
           end
+          `EXE_TEQI: begin
+            wreg_o <= `WriteDisable;    aluop_o <= `EXE_TEQI_OP;      alusel_o <=`EXE_RES_NOP;
+            reg1_read_o <= 1'b1;        reg2_read_o <= 1'b0;          instvalid <= `InstValid;    
+            imm <= {{16{inst_i[15]}},inst_i[15:0]};
+          end
+          `EXE_TGEI: begin
+            wreg_o <= `WriteDisable;    aluop_o <= `EXE_TGEI_OP;      alusel_o <=`EXE_RES_NOP;
+            reg1_read_o <= 1'b1;        reg2_read_o <= 1'b0;          instvalid <= `InstValid;    
+            imm <= {{16{inst_i[15]}},inst_i[15:0]};
+          end
+          `EXE_TGEIU: begin
+            wreg_o <= `WriteDisable;    aluop_o <= `EXE_TGEIU_OP;     alusel_o <=`EXE_RES_NOP;
+            reg1_read_o <= 1'b1;        reg2_read_o <= 1'b0;          instvalid <= `InstValid;    
+            imm <= {{16{inst_i[15]}},inst_i[15:0]};
+          end
+          `EXE_TLTI: begin
+            wreg_o <= `WriteDisable;    aluop_o <= `EXE_TLTI_OP;      alusel_o <=`EXE_RES_NOP;
+            reg1_read_o <= 1'b1;        reg2_read_o <= 1'b0;          instvalid <= `InstValid;    
+            imm <= {{16{inst_i[15]}},inst_i[15:0]};
+          end
+          `EXE_TLTIU: begin
+            wreg_o <= `WriteDisable;    aluop_o <= `EXE_TLTIU_OP;     alusel_o <=`EXE_RES_NOP;
+            reg1_read_o <= 1'b1;        reg2_read_o <= 1'b0;          instvalid <= `InstValid;    
+            imm <= {{16{inst_i[15]}},inst_i[15:0]};
+          end
+          `EXE_TNEI: begin
+            wreg_o <= `WriteDisable;    aluop_o <= `EXE_TNEI_OP;      alusel_o <=`EXE_RES_NOP;
+            reg1_read_o <= 1'b1;        reg2_read_o <= 1'b0;          instvalid <= `InstValid;    
+            imm <= {{16{inst_i[15]}},inst_i[15:0]};
+          end
           default: begin
           end
         endcase
@@ -528,6 +605,11 @@ always@(*) begin
           reg1_read_o <= 1'b0;     reg2_read_o <= 1'b0;     instvalid <= `InstValid;
           wd_o <= inst_i[20:16];
         end 
+        else if(inst_i[5:0] == `COP0_ERET && inst_i[25:6] == 20'h80000) begin
+          wreg_o <= `WriteDisable; aluop_o <= `EXE_ERET_OP; alusel_o <=`EXE_RES_NOP;
+          reg1_read_o <= 1'b0;     reg2_read_o <= 1'b0;     instvalid <= `InstValid;
+          excepttype_is_eret <= 1'b1;
+        end
         else ;
       end
       default: begin  

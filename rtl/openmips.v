@@ -54,6 +54,8 @@ wire [`RegBus] id_link_address_o;
 wire next_inst_in_delayslot;
 wire is_in_delayslot;
 wire [`RegBus] id_inst_o;
+wire [31:0] id_excepttype_o;
+wire [`RegBus] id_current_inst_addr_o;
 
 // id_ex && ex 
 wire [`AluOpBus] ex_aluop_i;
@@ -65,6 +67,8 @@ wire [`RegAddrBus] ex_wd_i;
 wire ex_is_in_delayslot_i;
 wire [`RegBus] ex_link_address_i;
 wire [`RegBus] ex_inst_i;
+wire [31:0] ex_excepttype_i;
+wire [`RegBus] ex_current_inst_addr_i;
 
 // ex && ex_mem 
 wire ex_wreg_o;
@@ -79,6 +83,9 @@ wire [`RegBus] ex_reg2_o;
 wire [`RegBus] ex_cp0_reg_data_o;
 wire [4:0] ex_cp0_reg_write_addr_o;
 wire ex_cp0_reg_we_o;
+wire [31:0] ex_excepttype_o;
+wire [`RegBus] ex_current_inst_addr_o;
+wire ex_is_in_delayslot_o;
 // ex -> ex_mem
 wire [`DoubleBus] hilo_temp_o;
 wire [1:0] cnt_o;
@@ -109,6 +116,9 @@ wire [`RegBus] mem_reg2_i;
 wire [`RegBus] mem_cp0_reg_data_i;
 wire [4:0] mem_cp0_reg_write_addr_i;
 wire mem_cp0_reg_we_i;
+wire [31:0] mem_excepttype_i;
+wire [`RegBus] mem_current_inst_addr_i;
+wire mem_is_in_delayslot_i;
 
 // mem && mem_wb (ex)
 wire mem_wreg_o;
@@ -122,6 +132,12 @@ wire mem_LLbit_value_o;
 wire [`RegBus] mem_cp0_reg_data_o;
 wire [4:0] mem_cp0_reg_write_addr_o;
 wire mem_cp0_reg_we_o;
+// mem && cp0_reg
+wire [31:0] mem_excepttype_o;
+wire [`RegBus] mem_current_inst_addr_o;
+wire mem_is_in_delayslot_o;
+// mem && ctrl
+wire [`RegBus] mem_cp0_epc_o;
 
 // mem_wb && regfile
 wire wb_wreg_i;
@@ -162,6 +178,15 @@ wire [`RegBus] branch_target_address;
 
 // LLbir_reg && mem
 wire LLbit;
+
+// ctrl && other
+wire [`RegBus] new_pc;
+wire flush;
+
+// cp0_reg && mem
+wire [31:0] cp0_status_o;
+wire [31:0] cp0_cause_o;
+wire [31:0] cp0_epc_o;
   
 // pc_reg 
 pc_reg pc_reg0(
@@ -169,6 +194,8 @@ pc_reg pc_reg0(
     .clk(clk),
     .rst(rst),
     .stall(stall),
+    .flush(flush),
+    .new_pc(new_pc),
     //output
     .pc(pc),
     .ce(rom_ce_o),
@@ -186,6 +213,7 @@ if_id if_id0(
     .if_pc(pc),
     .if_inst(rom_data_i),
     .stall(stall),
+    .flush(flush),
     //output
     .id_pc(id_pc_i),
     .id_inst(id_inst_i)
@@ -238,6 +266,8 @@ id id0(
     .is_in_delayslot_o(id_is_in_delayslot_o),
     .link_addr_o(id_link_address_o),
     .next_inst_in_delayslot_o(next_inst_in_delayslot),
+    .excepttype_o(id_excepttype_o),
+    .current_inst_addr_o(id_current_inst_addr_o),
     //output -> regfile
     .reg1_read_o(reg1_read),
     .reg1_addr_o(reg1_addr),
@@ -266,6 +296,9 @@ id_ex id_ex0(
     .id_link_address(id_link_address_o),
     .next_inst_in_delayslot_i(next_inst_in_delayslot),
     .id_inst(id_inst_o),
+    .flush(flush),
+    .id_excepttype(id_excepttype_o),
+    .id_current_inst_addr(id_current_inst_addr_o),
     //output
     .ex_aluop(ex_aluop_i),
     .ex_alusel(ex_alusel_i),
@@ -276,7 +309,9 @@ id_ex id_ex0(
     .ex_is_in_delayslot(ex_is_in_delayslot_i),
     .ex_link_address(ex_link_address_i),
     .is_in_delayslot_o(is_in_delayslot),
-    .ex_inst(ex_inst_i)
+    .ex_inst(ex_inst_i),
+    .ex_excepttype(ex_excepttype_i),
+    .ex_current_inst_addr(ex_current_inst_addr_i)
 );
 
 // ex
@@ -318,6 +353,9 @@ ex ex0(
     .mem_cp0_reg_data(mem_cp0_reg_data_o),
     .mem_cp0_reg_write_addr(mem_cp0_reg_write_addr_o),
     .mem_cp0_reg_we(mem_cp0_reg_we_o),
+    //input exception
+    .excepttype_i(ex_excepttype_i),
+    .current_inst_addr_i(ex_current_inst_addr_i),
     //output
     .wreg_o(ex_wreg_o),
     .wd_o(ex_wd_o),
@@ -341,7 +379,11 @@ ex ex0(
     .cp0_reg_read_addr_o(cp0_reg_read_addr),
     .cp0_reg_data_o(ex_cp0_reg_data_o),
     .cp0_reg_write_addr_o(ex_cp0_reg_write_addr_o),
-    .cp0_reg_we_o(ex_cp0_reg_we_o)
+    .cp0_reg_we_o(ex_cp0_reg_we_o),
+    //output exception
+    .excepttype_o(ex_excepttype_o),
+    .current_inst_addr_o(ex_current_inst_addr_o),
+    .is_in_delayslot_o(ex_is_in_delayslot_o)
 );
 
 // ex_mem
@@ -364,6 +406,10 @@ ex_mem ex_mem0(
     .ex_cp0_reg_data(ex_cp0_reg_data_o),
     .ex_cp0_reg_write_addr(ex_cp0_reg_write_addr_o),
     .ex_cp0_reg_we(ex_cp0_reg_we_o),
+    .flush(flush),
+    .ex_excepttype(ex_excepttype_o),
+    .ex_current_inst_addr(ex_current_inst_addr_o),
+    .ex_is_in_delayslot(ex_is_in_delayslot_o),
     //output
     .mem_wreg(mem_wreg_i),
     .mem_wd(mem_wd_i),
@@ -378,7 +424,10 @@ ex_mem ex_mem0(
     .mem_reg2(mem_reg2_i),
     .mem_cp0_reg_data(mem_cp0_reg_data_i),
     .mem_cp0_reg_write_addr(mem_cp0_reg_write_addr_i),
-    .mem_cp0_reg_we(mem_cp0_reg_we_i)
+    .mem_cp0_reg_we(mem_cp0_reg_we_i),
+    .mem_excepttype(mem_excepttype_i),
+    .mem_current_inst_addr(mem_current_inst_addr_i),
+    .mem_is_in_delayslot(mem_is_in_delayslot_i)
 );
 
 // mem
@@ -403,6 +452,16 @@ mem mem0(
     .cp0_reg_data_i(mem_cp0_reg_data_i),
     .cp0_reg_write_addr_i(mem_cp0_reg_write_addr_i),
     .cp0_reg_we_i(mem_cp0_reg_we_i),
+    //input exception
+    .excepttype_i(mem_excepttype_i),
+    .current_inst_address_i(mem_current_inst_addr_i),
+    .is_in_delayslot_i(mem_is_in_delayslot_i),
+    .cp0_status_i(cp0_status_o),
+    .cp0_cause_i(cp0_cause_o),
+    .cp0_epc_i(cp0_epc_o),
+    .wb_cp0_reg_we(wb_cp0_reg_we_i),
+    .wb_cp0_reg_write_address(wb_cp0_reg_write_addr_i),
+    .wb_cp0_reg_data(wb_cp0_reg_data_i),
     //output
     .wreg_o(mem_wreg_o),
     .wd_o(mem_wd_o),
@@ -421,7 +480,12 @@ mem mem0(
     //output cp0
     .cp0_reg_data_o(mem_cp0_reg_data_o),
     .cp0_reg_write_addr_o(mem_cp0_reg_write_addr_o),
-    .cp0_reg_we_o(mem_cp0_reg_we_o)
+    .cp0_reg_we_o(mem_cp0_reg_we_o),
+    //output exception
+    .excepttype_o(mem_excepttype_o),
+    .current_inst_address_o(mem_current_inst_addr_o),
+    .is_in_delayslot_o(mem_is_in_delayslot_o),
+    .cp0_epc_o(mem_cp0_epc_o)
 );
 
 // mem_wb
@@ -441,6 +505,7 @@ mem_wb mem_wb0(
     .mem_cp0_reg_data(mem_cp0_reg_data_o),
     .mem_cp0_reg_write_addr(mem_cp0_reg_write_addr_o),
     .mem_cp0_reg_we(mem_cp0_reg_we_o),
+    .flush(flush),
     //output
     .wb_wreg(wb_wreg_i),
     .wb_wd(wb_wd_i),
@@ -472,8 +537,12 @@ ctrl ctrl0(
     .rst(rst),
     .stallreq_from_id(stallreq_from_id),
     .stallreq_from_ex(stallreq_from_ex),
+    .cp0_epc_i(mem_cp0_epc_o),
+    .excepttype_i(mem_excepttype_o),
     //output
-    .stall(stall)
+    .stall(stall),
+    .new_pc(new_pc),
+    .flush(flush)
 );
 
 div div0(
@@ -484,7 +553,7 @@ div div0(
     .signed_div_i(signed_div),
     .opdata1_i(div_opdata1),
     .opdata2_i(div_opdata2),
-    .annul_i(1'b0),
+    .annul_i(flush),
     //output
     .result_o(div_result),
     .ready(div_ready)
@@ -496,7 +565,7 @@ LLbit_reg LLbit_reg0(
   .rst(rst),
   .we(wb_LLbit_we_i),
   .LLbit_i(wb_LLbit_value_i),
-  .flush(1'b0),
+  .flush(flush),
   //output
   .LLbit_o(LLbit)
 );
@@ -510,14 +579,17 @@ cp0_reg cp0_reg0(
   .waddr_i(wb_cp0_reg_write_addr_i),
   .data_i(wb_cp0_reg_data_i),
   .raddr_i(cp0_reg_read_addr),
+  .excepttype_i(mem_excepttype_o),
+  .current_inst_addr_i(mem_current_inst_addr_o),
+  .is_in_delayslot_i(mem_is_in_delayslot_o),
   //output
   .data_o(cp0_reg_data),
   .timer_int_o(timer_int_o),
   .count_o(),
   .compare_o(),
-  .status_o(),
-  .cause_o(),
-  .epc_o(),
+  .status_o(cp0_status_o),
+  .cause_o(cp0_cause_o),
+  .epc_o(cp0_epc_o),
   .config_o(),
   .prid_o()
 );
